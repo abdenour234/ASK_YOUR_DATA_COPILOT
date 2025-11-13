@@ -1,0 +1,50 @@
+# Ask Your Data Copilot
+
+ask-your-data-env/
+*.pyc
+__pycache__/
+*.py[cod]
+*$py.class
+
+# DuckDB database files
+*.db
+*.duckdb
+*.wal
+
+# dbt
+dbt/target/
+dbt/dbt_packages/
+dbt/logs/
+
+# FAISS index
+glossary/index.faiss
+glossary/*.pkl
+
+# Data files
+data/raw/*.csv
+data/processed/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Streamlit
+.streamlit/secrets.toml
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+*.cover
+
+# Distribution
+dist/
+build/
+*.egg-info/
