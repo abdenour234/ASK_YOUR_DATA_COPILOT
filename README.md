@@ -121,7 +121,7 @@ ask_your_data/
 
 **Sprint 1 — Foundation** (Tickets 1-4)
 - ✅ Environment setup & dependency installation
-- ⏳ Data ingestion (Olist → DuckDB)
+- ✅ Data ingestion (Olist → DuckDB) — 1.5M+ rows, 11 tables
 - ⏳ dbt transformations
 - ⏳ RAG glossary with FAISS
 
@@ -198,6 +198,8 @@ MIT License - see LICENSE file for details
 
 ---
 
-**Status**: Sprint 1 in progress (Environment setup complete ✅)
+**Status**: Sprint 1 in progress (Environment ✅ | Data Ingestion ✅)
+
+**Database**: `ask_your_data.db` — 11 tables, 1.5M+ rows, 40.76 MB
 
 For detailed AI coding guidelines, see [.github/copilot-instructions.md](.github/copilot-instructions.md)
