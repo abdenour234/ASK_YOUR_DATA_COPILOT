@@ -1,0 +1,60 @@
+[0m14:16:50.355838 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'invocation', 'label': 'start', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x000001D91B4D3690>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x000001D91B4D2FD0>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x000001D91B4D3750>]}
+
+
+============================== 14:16:50.355838 | 0ffa59c4-9ae9-4131-8d4c-de9c0a840c23 ==============================
+[0m14:16:50.355838 [info ] [MainThread]: Running with dbt=1.10.15
+[0m14:16:50.355838 [debug] [MainThread]: running dbt with arguments {'invocation_command': 'dbt debug', 'profiles_dir': 'C:\\Users\\tufai\\.dbt', 'cache_selected_only': 'False', 'write_json': 'True', 'log_format': 'default', 'warn_error': 'None', 'indirect_selection': 'eager', 'fail_fast': 'False', 'partial_parse': 'True', 'send_anonymous_usage_stats': 'True', 'static_parser': 'True', 'warn_error_options': 'WarnErrorOptionsV2(error=[], warn=[], silence=[])', 'log_path': 'logs', 'version_check': 'True', 'use_experimental_parser': 'False', 'quiet': 'False', 'introspect': 'True', 'empty': 'None', 'log_cache_events': 'False', 'debug': 'False', 'no_print': 'None', 'use_colors': 'True', 'printer_width': '80', 'target_path': 'None'}
+[0m14:16:50.377675 [info ] [MainThread]: dbt version: 1.10.15
+[0m14:16:50.377675 [info ] [MainThread]: python version: 3.11.9
+[0m14:16:50.377675 [info ] [MainThread]: python path: C:\Users\tufai\Documents\ASK_Your_Data_Copilot\ask-your-data-env\Scripts\python.exe
+[0m14:16:50.377675 [info ] [MainThread]: os info: Windows-10-10.0.26200-SP0
+[0m14:16:50.457229 [info ] [MainThread]: Using profiles dir at C:\Users\tufai\.dbt
+[0m14:16:50.457229 [info ] [MainThread]: Using profiles.yml file at C:\Users\tufai\.dbt\profiles.yml
+[0m14:16:50.457229 [info ] [MainThread]: Using dbt_project.yml file at C:\Users\tufai\Documents\ASK_Your_Data_Copilot\dbt_project.yml
+[0m14:16:50.457229 [error] [MainThread]: Encountered an error:
+Internal Error
+  Profile should not be None if loading profile completed
+[0m14:16:50.472948 [debug] [MainThread]: Command `dbt debug` failed at 14:16:50.472948 after 0.17 seconds
+[0m14:16:50.472948 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'invocation', 'label': 'end', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x000001D9148F62D0>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x000001D91B2149D0>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x000001D91A517F50>]}
+[0m14:16:50.472948 [debug] [MainThread]: Flushing usage events
+[0m14:16:51.393127 [debug] [MainThread]: An error was encountered while trying to flush usage events
+[0m14:17:36.961628 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'invocation', 'label': 'start', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x000001B9A6823850>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x000001B9A67BCE50>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x000001B9A67EE710>]}
+
+
+============================== 14:17:36.979234 | fba392f7-495b-4904-8200-e8f9af346a29 ==============================
+[0m14:17:36.979234 [info ] [MainThread]: Running with dbt=1.10.15
+[0m14:17:36.979234 [debug] [MainThread]: running dbt with arguments {'printer_width': '80', 'log_format': 'default', 'profiles_dir': 'C:\\Users\\tufai\\.dbt', 'write_json': 'True', 'use_colors': 'True', 'warn_error': 'None', 'log_path': 'logs', 'fail_fast': 'False', 'indirect_selection': 'eager', 'send_anonymous_usage_stats': 'True', 'partial_parse': 'True', 'warn_error_options': 'WarnErrorOptionsV2(error=[], warn=[], silence=[])', 'static_parser': 'True', 'version_check': 'True', 'use_experimental_parser': 'False', 'quiet': 'False', 'introspect': 'True', 'empty': 'None', 'log_cache_events': 'False', 'debug': 'False', 'no_print': 'None', 'invocation_command': 'dbt debug', 'cache_selected_only': 'False', 'target_path': 'None'}
+[0m14:17:36.996453 [info ] [MainThread]: dbt version: 1.10.15
+[0m14:17:36.997437 [info ] [MainThread]: python version: 3.11.9
+[0m14:17:36.997437 [info ] [MainThread]: python path: C:\Users\tufai\Documents\ASK_Your_Data_Copilot\ask-your-data-env\Scripts\python.exe
+[0m14:17:36.998491 [info ] [MainThread]: os info: Windows-10-10.0.26200-SP0
+[0m14:17:37.080954 [info ] [MainThread]: Using profiles dir at C:\Users\tufai\.dbt
+[0m14:17:37.080954 [info ] [MainThread]: Using profiles.yml file at C:\Users\tufai\.dbt\profiles.yml
+[0m14:17:37.080954 [info ] [MainThread]: Using dbt_project.yml file at C:\Users\tufai\Documents\ASK_Your_Data_Copilot\dbt_project.yml
+[0m14:17:37.080954 [error] [MainThread]: Encountered an error:
+Internal Error
+  Profile should not be None if loading profile completed
+[0m14:17:37.080954 [debug] [MainThread]: Command `dbt debug` failed at 14:17:37.080954 after 0.16 seconds
+[0m14:17:37.080954 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'invocation', 'label': 'end', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x000001B99FE04210>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x000001B9A646E410>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x000001B9A7987F50>]}
+[0m14:17:37.080954 [debug] [MainThread]: Flushing usage events
+[0m14:17:37.922653 [debug] [MainThread]: An error was encountered while trying to flush usage events
+[0m14:19:23.925031 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'invocation', 'label': 'start', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x000001CFA17CD250>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x000001CFA17C7CD0>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x000001CF9E719750>]}
+
+
+============================== 14:19:23.925031 | 2ebbe1db-3075-4764-b61f-91227b82d415 ==============================
+[0m14:19:23.925031 [info ] [MainThread]: Running with dbt=1.10.15
+[0m14:19:23.925031 [debug] [MainThread]: running dbt with arguments {'write_json': 'True', 'printer_width': '80', 'invocation_command': 'dbt debug', 'log_format': 'default', 'profiles_dir': 'C:\\Users\\tufai\\.dbt', 'warn_error': 'None', 'static_parser': 'True', 'partial_parse': 'True', 'fail_fast': 'False', 'send_anonymous_usage_stats': 'True', 'log_path': 'logs', 'warn_error_options': 'WarnErrorOptionsV2(error=[], warn=[], silence=[])', 'indirect_selection': 'eager', 'version_check': 'True', 'use_experimental_parser': 'False', 'quiet': 'False', 'introspect': 'True', 'empty': 'None', 'log_cache_events': 'False', 'debug': 'False', 'no_print': 'None', 'use_colors': 'True', 'cache_selected_only': 'False', 'target_path': 'None'}
+[0m14:19:23.941015 [info ] [MainThread]: dbt version: 1.10.15
+[0m14:19:23.941015 [info ] [MainThread]: python version: 3.11.9
+[0m14:19:23.941015 [info ] [MainThread]: python path: C:\Users\tufai\Documents\ASK_Your_Data_Copilot\ask-your-data-env\Scripts\python.exe
+[0m14:19:23.956202 [info ] [MainThread]: os info: Windows-10-10.0.26200-SP0
+[0m14:19:24.026862 [info ] [MainThread]: Using profiles dir at C:\Users\tufai\.dbt
+[0m14:19:24.026862 [info ] [MainThread]: Using profiles.yml file at C:\Users\tufai\.dbt\profiles.yml
+[0m14:19:24.026862 [info ] [MainThread]: Using dbt_project.yml file at C:\Users\tufai\Documents\ASK_Your_Data_Copilot\dbt_project.yml
+[0m14:19:24.042750 [error] [MainThread]: Encountered an error:
+Internal Error
+  Profile should not be None if loading profile completed
+[0m14:19:24.042750 [debug] [MainThread]: Command `dbt debug` failed at 14:19:24.042750 after 0.17 seconds
+[0m14:19:24.042750 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'invocation', 'label': 'end', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x000001CF9AC865D0>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x000001CF9AC86650>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x000001CF9AC861D0>]}
+[0m14:19:24.042750 [debug] [MainThread]: Flushing usage events
+[0m14:19:24.919527 [debug] [MainThread]: An error was encountered while trying to flush usage events

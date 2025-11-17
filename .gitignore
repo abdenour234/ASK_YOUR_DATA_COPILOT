@@ -20,9 +20,7 @@ dbt/logs/
 glossary/index.faiss
 glossary/*.pkl
 
-# Data files
-data/raw/*.csv
-data/processed/
+
 
 # IDE
 .vscode/
