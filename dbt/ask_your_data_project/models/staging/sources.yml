@@ -1,0 +1,22 @@
+version: 2
+
+sources:
+  - name: raw
+    schema: raw
+    tables:
+      - name: orders
+      - name: customers
+      - name: products
+      - name: order_items
+      - name: geolocation
+      - name: order_payments
+      - name: order_reviews
+      - name: sellers
+      - name: product_category_translation
+
+# Nouvelles sources pour dimensions
+  - name: dimensions
+    schema: dimensions  # ou le schéma où ces tables se trouvent
+    tables:
+      - name: calendar
+      - name: brazilian_states

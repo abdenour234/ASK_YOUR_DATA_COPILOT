@@ -1,0 +1,95 @@
+version: 2
+
+models:
+  # === DIMENSIONS ===
+  - name: dim_customers
+    description: "Dimension client avec informations géographiques"
+    columns:
+      - name: customer_id
+        description: "Identifiant unique du client"
+        tests:
+          - unique
+          - not_null
+      - name: customer_unique_id
+        description: "Identifiant business unique du client"
+      - name: zip_prefix
+        description: "Code postal (préfixe)"
+      - name: customer_city
+        description: "Ville du client"
+      - name: customer_state
+        description: "État du client"
+
+  - name: dim_products
+    description: "Dimension produit avec catégories et dimensions physiques"
+    columns:
+      - name: product_id
+        description: "Identifiant unique du produit"
+        tests:
+          - unique
+          - not_null
+      - name: product_category_name
+        description: "Nom de la catégorie produit"
+      - name: weight_g
+        description: "Poids en grammes"
+      - name: length_cm
+        description: "Longueur en cm"
+
+  - name: dim_sellers
+    description: "Dimension vendeur avec localisation"
+    columns:
+      - name: seller_id
+        description: "Identifiant unique du vendeur"
+        tests:
+          - unique
+          - not_null
+      - name: zip_prefix
+        description: "Code postal du vendeur"
+      - name: seller_city
+        description: "Ville du vendeur"
+      - name: seller_state
+        description: "État du vendeur"
+
+  # === FACTS ===
+  - name: fact_orders
+    description: "Table de faits des commandes"
+    columns:
+      - name: order_id
+        description: "Identifiant unique de la commande"
+        tests:
+          - unique
+          - not_null
+      - name: customer_id
+        description: "Référence vers dim_customers"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_customers')
+              field: customer_id
+      - name: order_status
+        description: "Statut de la commande"
+      - name: order_purchase_ts
+        description: "Timestamp d'achat"
+
+  - name: fact_order_items
+    description: "Table de faits des articles de commande"
+    columns:
+      - name: order_id
+        description: "Référence vers fact_orders"
+        tests:
+          - not_null
+      - name: product_id
+        description: "Référence vers dim_products"
+        tests:
+          - relationships:
+              to: ref('dim_products')
+              field: product_id
+      - name: seller_id
+        description: "Référence vers dim_sellers"
+        tests:
+          - relationships:
+              to: ref('dim_sellers')
+              field: seller_id
+      - name: price
+        description: "Prix de l'article"
+      - name: freight_value
+        description: "Coût de livraison"
