@@ -1,0 +1,558 @@
+# Business Glossary for Olist E-commerce Data
+# Sprint 1 - Ticket 4: RAG Knowledge Base
+# Updated to reflect dbt transformations and mart models
+# Contains metrics, dimensions, and business terms for NL-to-SQL generation
+
+version: "2.0"
+domain: "ecommerce"
+dataset: "olist_brazilian_ecommerce"
+last_updated: "2025-11-28"
+
+# MART TABLES STRUCTURE:
+# - mart.fact_orders: Order-level facts with calendar dimensions
+# - mart.fact_order_items: Order item-level facts
+# - mart.dim_customers: Customer dimension with region enrichment
+# - mart.dim_products: Product dimension with English translations
+# - mart.dim_sellers: Seller dimension with region enrichment
+
+# METRICS - Measurable business values
+metrics:
+  revenue:
+    description: "Total payment value from completed orders"
+    sql_column: "payment_value"
+    table: "stg_order_payments"
+    mart_table: "fact_order_items"
+    aggregation: "SUM"
+    data_type: "numeric"
+    unit: "BRL"
+    example_query: "What is the total revenue?"
+    formula: "SUM(payment_value)"
+    join_required: true
+    
+  total_sales:
+    description: "Sum of all payment values across orders (synonym for revenue)"
+    sql_column: "payment_value"
+    table: "stg_order_payments"
+    mart_table: "fact_order_items"
+    aggregation: "SUM"
+    data_type: "numeric"
+    unit: "BRL"
+    example_query: "Show me total sales"
+    formula: "SUM(payment_value)"
+    join_required: true
+    
+  order_count:
+    description: "Number of orders placed"
+    sql_column: "order_id"
+    table: "stg_orders"
+    mart_table: "fact_orders"
+    aggregation: "COUNT"
+    data_type: "integer"
+    example_query: "How many orders were placed?"
+    formula: "COUNT(DISTINCT order_id)"
+    
+  average_order_value:
+    description: "Average payment value per order"
+    sql_column: "payment_value"
+    table: "stg_order_payments"
+    mart_table: "fact_order_items"
+    aggregation: "AVG"
+    data_type: "numeric"
+    unit: "BRL"
+    example_query: "What is the average order value?"
+    formula: "AVG(payment_value)"
+    aliases: ["AOV", "avg order value", "mean order value"]
+    join_required: true
+    
+  customer_count:
+    description: "Number of unique customers"
+    sql_column: "customer_unique_id"
+    table: "stg_customers"
+    mart_table: "dim_customers"
+    aggregation: "COUNT"
+    data_type: "integer"
+    example_query: "How many customers do we have?"
+    formula: "COUNT(DISTINCT customer_unique_id)"
+    
+  product_count:
+    description: "Number of products sold or available"
+    sql_column: "product_id"
+    table: "stg_products"
+    mart_table: "dim_products"
+    aggregation: "COUNT"
+    data_type: "integer"
+    example_query: "How many products are in the catalog?"
+    formula: "COUNT(DISTINCT product_id)"
+    
+  average_delivery_time:
+    description: "Average number of days from order to delivery"
+    sql_column: "delivered_customer_ts"
+    table: "stg_orders"
+    mart_table: "fact_orders"
+    aggregation: "AVG"
+    data_type: "numeric"
+    unit: "days"
+    example_query: "What is the average delivery time?"
+    formula: "AVG(DATEDIFF('day', order_purchase_ts, delivered_customer_ts))"
+    notes: "Uses transformed timestamp columns: delivered_customer_ts and order_purchase_ts"
+    
+  review_score:
+    description: "Customer satisfaction rating (1-5 stars)"
+    sql_column: "review_score"
+    table: "stg_order_reviews"
+    aggregation: "AVG"
+    data_type: "numeric"
+    unit: "stars"
+    example_query: "What is the average review score?"
+    formula: "AVG(review_score)"
+    aliases: ["rating", "customer rating", "satisfaction score"]
+    
+  freight_cost:
+    description: "Total shipping/freight charges"
+    sql_column: "freight_value"
+    table: "stg_order_items"
+    mart_table: "fact_order_items"
+    aggregation: "SUM"
+    data_type: "numeric"
+    unit: "BRL"
+    example_query: "What is the total freight cost?"
+    formula: "SUM(freight_value)"
+    
+  item_price:
+    description: "Total price of items before shipping"
+    sql_column: "price"
+    table: "stg_order_items"
+    mart_table: "fact_order_items"
+    aggregation: "SUM"
+    data_type: "numeric"
+    unit: "BRL"
+    example_query: "What is the total item price?"
+    formula: "SUM(price)"
+
+# DIMENSIONS - Attributes for grouping and filtering
+dimensions:
+  customer_state:
+    description: "Brazilian state where customer is located (2-letter code)"
+    sql_column: "customer_state"
+    table: "stg_customers"
+    mart_table: "dim_customers"
+    data_type: "varchar"
+    example_query: "Show sales by customer state"
+    values_count: 27
+    notes: "Join with brazilian_states dimension for region mapping"
+    
+  customer_region:
+    description: "Brazilian geographic region (North, Northeast, Central-West, Southeast, South)"
+    sql_column: "customer_region"
+    table: "dim_customers"
+    data_type: "varchar"
+    example_query: "Compare sales by region"
+    possible_values: ["North", "Northeast", "Central-West", "Southeast", "South"]
+    notes: "Enriched from brazilian_states dimension table"
+    
+  customer_city:
+    description: "City where customer resides"
+    sql_column: "customer_city"
+    table: "stg_customers"
+    mart_table: "dim_customers"
+    data_type: "varchar"
+    example_query: "Which city has the most customers?"
+    
+  product_category:
+    description: "Category of the product in Portuguese"
+    sql_column: "product_category_name"
+    table: "stg_products"
+    mart_table: "dim_products"
+    data_type: "varchar"
+    example_query: "Show revenue by product category"
+    notes: "Use product_category_english for English translations"
+    
+  product_category_english:
+    description: "Product category translated to English"
+    sql_column: "product_category_name_english"
+    table: "dim_products"
+    data_type: "varchar"
+    example_query: "What are the top product categories?"
+    notes: "Enriched from product_category_translation table"
+    
+  order_status:
+    description: "Current status of the order (lowercase, trimmed)"
+    sql_column: "order_status"
+    table: "stg_orders"
+    mart_table: "fact_orders"
+    data_type: "varchar"
+    example_query: "How many orders are delivered?"
+    possible_values: ["delivered", "shipped", "canceled", "unavailable", "invoiced", "processing", "created", "approved"]
+    notes: "Cleaned in staging: LOWER(TRIM(order_status))"
+    
+  payment_type:
+    description: "Method of payment used (lowercase, trimmed)"
+    sql_column: "payment_type"
+    table: "stg_order_payments"
+    data_type: "varchar"
+    example_query: "What payment types are most popular?"
+    possible_values: ["credit_card", "boleto", "voucher", "debit_card"]
+    notes: "Cleaned in staging: LOWER(TRIM(payment_type))"
+    
+  seller_state:
+    description: "Brazilian state where seller is located (2-letter code)"
+    sql_column: "seller_state"
+    table: "stg_sellers"
+    mart_table: "dim_sellers"
+    data_type: "varchar"
+    example_query: "Which states have the most sellers?"
+    notes: "Join with brazilian_states dimension for region mapping"
+    
+  seller_region:
+    description: "Brazilian geographic region for sellers"
+    sql_column: "seller_region"
+    table: "dim_sellers"
+    data_type: "varchar"
+    example_query: "Show sellers by region"
+    possible_values: ["North", "Northeast", "Central-West", "Southeast", "South"]
+    notes: "Enriched from brazilian_states dimension table"
+    
+  seller_city:
+    description: "City where seller operates from"
+    sql_column: "seller_city"
+    table: "stg_sellers"
+    mart_table: "dim_sellers"
+    data_type: "varchar"
+    example_query: "List sellers by city"
+    
+  order_purchase_date:
+    description: "Date when order was purchased (timestamp)"
+    sql_column: "order_purchase_ts"
+    table: "stg_orders"
+    mart_table: "fact_orders"
+    data_type: "timestamp"
+    example_query: "Show orders by date"
+    notes: "Transformed from order_purchase_timestamp to order_purchase_ts"
+    
+  order_approved_date:
+    description: "Date when order was approved"
+    sql_column: "order_approved_ts"
+    table: "stg_orders"
+    mart_table: "fact_orders"
+    data_type: "timestamp"
+    example_query: "When were orders approved?"
+    notes: "Transformed from order_approved_at to order_approved_ts"
+    
+  delivery_date:
+    description: "Date when order was delivered to customer"
+    sql_column: "delivered_customer_ts"
+    table: "stg_orders"
+    mart_table: "fact_orders"
+    data_type: "timestamp"
+    example_query: "When were orders delivered?"
+    notes: "Transformed from order_delivered_customer_date to delivered_customer_ts"
+    
+  carrier_delivery_date:
+    description: "Date when order was handed to carrier"
+    sql_column: "delivered_carrier_ts"
+    table: "stg_orders"
+    mart_table: "fact_orders"
+    data_type: "timestamp"
+    example_query: "When were orders picked up by carrier?"
+    notes: "Transformed from order_delivered_carrier_date to delivered_carrier_ts"
+    
+  purchase_year:
+    description: "Year when order was purchased (from calendar dimension)"
+    sql_column: "purchase_year"
+    table: "fact_orders"
+    data_type: "integer"
+    example_query: "Show sales by year"
+    notes: "Enriched from calendar dimension via date join"
+    
+  purchase_month:
+    description: "Month when order was purchased (from calendar dimension)"
+    sql_column: "purchase_month"
+    table: "fact_orders"
+    data_type: "integer"
+    example_query: "Show monthly trends"
+    notes: "Enriched from calendar dimension via date join"
+    
+  purchase_day_name:
+    description: "Day of week when order was purchased"
+    sql_column: "purchase_day_name"
+    table: "fact_orders"
+    data_type: "varchar"
+    example_query: "Which day has most orders?"
+    notes: "Enriched from calendar dimension via date join"
+    
+  purchase_is_weekend:
+    description: "Boolean indicating if order was placed on weekend"
+    sql_column: "purchase_is_weekend"
+    table: "fact_orders"
+    data_type: "boolean"
+    example_query: "Compare weekend vs weekday orders"
+    notes: "Enriched from calendar dimension via date join"
+    
+  purchase_date_key:
+    description: "Date key for calendar dimension join (YYYYMMDD format)"
+    sql_column: "purchase_date_key"
+    table: "fact_orders"
+    data_type: "integer"
+    example_query: "Join to calendar for time-based analysis"
+    notes: "Surrogate key from calendar dimension"
+    
+  shipping_limit_date:
+    description: "Latest date seller must ship to meet delivery promise"
+    sql_column: "shipping_limit_ts"
+    table: "stg_order_items"
+    mart_table: "fact_order_items"
+    data_type: "timestamp"
+    example_query: "Find orders with shipping deadline today"
+    notes: "Transformed from shipping_limit_date to shipping_limit_ts"
+
+# BUSINESS TERMS - Common phrases and their meanings
+business_terms:
+  total_revenue:
+    description: "Sum of all payment values"
+    maps_to: "revenue"
+    type: "metric"
+    
+  top_selling_products:
+    description: "Products with highest sales volume or revenue"
+    maps_to: "product_category"
+    type: "dimension"
+    requires: ["product_category", "revenue"]
+    
+  customer_distribution:
+    description: "Number of customers grouped by location"
+    maps_to: "customer_state"
+    type: "dimension"
+    requires: ["customer_state", "customer_count"]
+    
+  delivery_performance:
+    description: "Metrics related to order fulfillment and shipping"
+    maps_to: "average_delivery_time"
+    type: "metric"
+    requires: ["delivery_date", "order_date"]
+    
+  customer_satisfaction:
+    description: "Customer feedback and ratings"
+    maps_to: "review_score"
+    type: "metric"
+    
+  payment_methods:
+    description: "Types of payment used by customers"
+    maps_to: "payment_type"
+    type: "dimension"
+    
+  geographic_analysis:
+    description: "Analysis by location (state, city, region)"
+    maps_to: "customer_state"
+    type: "dimension"
+    requires: ["customer_state", "customer_city", "region"]
+    
+  sales_trends:
+    description: "Revenue or order patterns over time"
+    maps_to: "order_date"
+    type: "dimension"
+    requires: ["order_date", "year", "month", "revenue"]
+    
+  order_fulfillment:
+    description: "Status and progress of orders"
+    maps_to: "order_status"
+    type: "dimension"
+
+# RELATIONSHIPS - How tables connect in mart schema
+relationships:
+  fact_orders_to_dim_customers:
+    description: "Orders belong to customers"
+    from_table: "fact_orders"
+    from_column: "customer_id"
+    to_table: "dim_customers"
+    to_column: "customer_id"
+    relationship_type: "many_to_one"
+    notes: "Primary relationship for customer analysis"
+    
+  fact_orders_to_calendar:
+    description: "Orders join to calendar dimension for time-based analysis"
+    from_table: "fact_orders"
+    from_column: "purchase_date_key"
+    to_table: "calendar"
+    to_column: "date_key"
+    relationship_type: "many_to_one"
+    notes: "Enables year, month, day_name, is_weekend analysis"
+    
+  fact_order_items_to_fact_orders:
+    description: "Order items belong to orders"
+    from_table: "fact_order_items"
+    from_column: "order_id"
+    to_table: "fact_orders"
+    to_column: "order_id"
+    relationship_type: "many_to_one"
+    notes: "Core relationship for order-level aggregations"
+    
+  fact_order_items_to_dim_products:
+    description: "Order items reference products"
+    from_table: "fact_order_items"
+    from_column: "product_id"
+    to_table: "dim_products"
+    to_column: "product_id"
+    relationship_type: "many_to_one"
+    notes: "Use for product category analysis with English translations"
+    
+  fact_order_items_to_dim_sellers:
+    description: "Order items are fulfilled by sellers"
+    from_table: "fact_order_items"
+    from_column: "seller_id"
+    to_table: "dim_sellers"
+    to_column: "seller_id"
+    relationship_type: "many_to_one"
+    notes: "Use for seller region and location analysis"
+    
+  dim_customers_to_brazilian_states:
+    description: "Customers mapped to regions via state code"
+    from_table: "dim_customers"
+    from_column: "customer_state"
+    to_table: "brazilian_states"
+    to_column: "state_code"
+    relationship_type: "many_to_one"
+    notes: "Enrichment relationship for customer_region"
+    
+  dim_sellers_to_brazilian_states:
+    description: "Sellers mapped to regions via state code"
+    from_table: "dim_sellers"
+    from_column: "seller_state"
+    to_table: "brazilian_states"
+    to_column: "state_code"
+    relationship_type: "many_to_one"
+    notes: "Enrichment relationship for seller_region"
+    
+  dim_products_to_category_translation:
+    description: "Products joined to English category names"
+    from_table: "dim_products"
+    from_column: "product_category_name"
+    to_table: "stg_product_category_translation"
+    to_column: "product_category_name"
+    relationship_type: "many_to_one"
+    notes: "Enrichment for product_category_name_english"
+
+# COMMON QUERIES - Example natural language queries with SQL patterns
+common_queries:
+  - query: "What is the total revenue?"
+    intent: "aggregate_metric"
+    metrics: ["revenue"]
+    tables: ["fact_order_items", "stg_order_payments"]
+    sql_pattern: "SELECT SUM(payment_value) as total_revenue FROM stg_order_payments"
+    
+  - query: "Show revenue by customer state"
+    intent: "group_by_dimension"
+    metrics: ["revenue"]
+    dimensions: ["customer_state"]
+    tables: ["fact_orders", "dim_customers", "fact_order_items", "stg_order_payments"]
+    sql_pattern: |
+      SELECT c.customer_state, SUM(p.payment_value) as revenue
+      FROM fact_orders o
+      JOIN dim_customers c ON o.customer_id = c.customer_id
+      JOIN stg_order_payments p ON o.order_id = p.order_id
+      GROUP BY c.customer_state
+      ORDER BY revenue DESC
+    
+  - query: "Show revenue by region"
+    intent: "group_by_dimension"
+    metrics: ["revenue"]
+    dimensions: ["customer_region"]
+    tables: ["fact_orders", "dim_customers", "stg_order_payments"]
+    sql_pattern: |
+      SELECT c.customer_region, SUM(p.payment_value) as revenue
+      FROM fact_orders o
+      JOIN dim_customers c ON o.customer_id = c.customer_id
+      JOIN stg_order_payments p ON o.order_id = p.order_id
+      GROUP BY c.customer_region
+      ORDER BY revenue DESC
+    notes: "Uses enriched customer_region from dim_customers"
+    
+  - query: "Top 10 product categories by revenue"
+    intent: "top_n"
+    metrics: ["revenue"]
+    dimensions: ["product_category_english"]
+    tables: ["fact_order_items", "dim_products", "stg_order_payments"]
+    limit: 10
+    sql_pattern: |
+      SELECT p.product_category_name_english, SUM(pay.payment_value) as revenue
+      FROM fact_order_items i
+      JOIN dim_products p ON i.product_id = p.product_id
+      JOIN stg_order_payments pay ON i.order_id = pay.order_id
+      GROUP BY p.product_category_name_english
+      ORDER BY revenue DESC
+      LIMIT 10
+    notes: "Uses English category names from dim_products"
+    
+  - query: "Monthly sales trend for 2017"
+    intent: "time_series"
+    metrics: ["revenue"]
+    dimensions: ["purchase_year", "purchase_month"]
+    tables: ["fact_orders", "stg_order_payments"]
+    filters: ["purchase_year = 2017"]
+    sql_pattern: |
+      SELECT o.purchase_year, o.purchase_month, SUM(p.payment_value) as revenue
+      FROM fact_orders o
+      JOIN stg_order_payments p ON o.order_id = p.order_id
+      WHERE o.purchase_year = 2017
+      GROUP BY o.purchase_year, o.purchase_month
+      ORDER BY o.purchase_year, o.purchase_month
+    notes: "Uses calendar-enriched columns from fact_orders"
+    
+  - query: "Orders delivered in SP state"
+    intent: "filter"
+    metrics: ["order_count"]
+    dimensions: ["customer_state"]
+    tables: ["fact_orders", "dim_customers"]
+    filters: ["customer_state = 'SP'", "order_status = 'delivered'"]
+    sql_pattern: |
+      SELECT COUNT(DISTINCT o.order_id) as order_count
+      FROM fact_orders o
+      JOIN dim_customers c ON o.customer_id = c.customer_id
+      WHERE c.customer_state = 'SP'
+        AND o.order_status = 'delivered'
+    notes: "Uses cleaned order_status (lowercase) from fact_orders"
+    
+  - query: "Average order value by region"
+    intent: "aggregate_by_dimension"
+    metrics: ["average_order_value"]
+    dimensions: ["customer_region"]
+    tables: ["fact_orders", "dim_customers", "stg_order_payments"]
+    sql_pattern: |
+      SELECT c.customer_region, AVG(p.payment_value) as avg_order_value
+      FROM fact_orders o
+      JOIN dim_customers c ON o.customer_id = c.customer_id
+      JOIN stg_order_payments p ON o.order_id = p.order_id
+      GROUP BY c.customer_region
+      ORDER BY avg_order_value DESC
+    notes: "Uses enriched customer_region from dim_customers"
+    
+  - query: "Weekend vs weekday sales comparison"
+    intent: "comparison"
+    metrics: ["revenue", "order_count"]
+    dimensions: ["purchase_is_weekend"]
+    tables: ["fact_orders", "stg_order_payments"]
+    sql_pattern: |
+      SELECT 
+        o.purchase_is_weekend,
+        COUNT(DISTINCT o.order_id) as order_count,
+        SUM(p.payment_value) as revenue
+      FROM fact_orders o
+      JOIN stg_order_payments p ON o.order_id = p.order_id
+      GROUP BY o.purchase_is_weekend
+    notes: "Uses calendar-enriched purchase_is_weekend flag"
+    
+  - query: "Seller performance by region"
+    intent: "group_by_dimension"
+    metrics: ["revenue", "order_count"]
+    dimensions: ["seller_region"]
+    tables: ["fact_order_items", "dim_sellers", "stg_order_payments"]
+    sql_pattern: |
+      SELECT 
+        s.seller_region,
+        COUNT(DISTINCT i.order_id) as order_count,
+        SUM(p.payment_value) as revenue
+      FROM fact_order_items i
+      JOIN dim_sellers s ON i.seller_id = s.seller_id
+      JOIN stg_order_payments p ON i.order_id = p.order_id
+      GROUP BY s.seller_region
+      ORDER BY revenue DESC
+    notes: "Uses enriched seller_region from dim_sellers"

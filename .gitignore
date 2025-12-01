@@ -1,5 +1,8 @@
 # Ask Your Data Copilot
 
+# Environment variables (contains API keys)
+.env
+
 ask-your-data-env/
 *.pyc
 __pycache__/
@@ -20,7 +23,9 @@ dbt/logs/
 glossary/index.faiss
 glossary/*.pkl
 
-
+# Data files
+data/raw/*.csv
+data/processed/
 
 # IDE
 .vscode/
