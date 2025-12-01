@@ -13,9 +13,10 @@ from pathlib import Path
 import os
 import time
 
-# Add project root to path
-project_root = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(project_root))
+# Add project root to path - must be done before other imports
+project_root = Path(__file__).resolve().parent.parent.parent
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
 
 from src.nlp.intent_parser import IntentParser
 from src.sql.generator import SQLGenerator
