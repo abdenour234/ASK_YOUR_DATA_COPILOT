@@ -1,4 +1,8 @@
 """
-Ask Your Data Copilot - Chart Recommendation Module
-Sprint 2 - Ticket 7: Chart recommendation and LLM narratives
+Charts module - Automatic chart selection and rendering
 """
+
+from .chart_selector import ChartSelector
+from .plotly_renderer import PlotlyRenderer
+
+__all__ = ['ChartSelector', 'PlotlyRenderer']
