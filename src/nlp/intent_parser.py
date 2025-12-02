@@ -304,21 +304,97 @@ Respond ONLY with valid JSON matching this exact structure (no explanations, no 
             raise ValueError(f"Unexpected API response format: {result}")
     
     def _extract_json(self, response_text: str) -> Dict:
-        """Extract JSON from LLM response."""
-        # Remove markdown code blocks if present
-        response_text = re.sub(r'```json\s*', '', response_text)
-        response_text = re.sub(r'```\s*', '', response_text)
-        
-        # Try to find JSON object in response
-        json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
-        if json_match:
-            json_str = json_match.group(0)
-            try:
-                return json.loads(json_str)
-            except json.JSONDecodeError as e:
-                raise ValueError(f"Invalid JSON in response: {e}\nResponse: {response_text}")
-        else:
+        """Extract JSON from LLM response using tolerant heuristics.
+
+        The LLM may include surrounding text, markdown fences, or use single
+        quotes. This method attempts several strategies before failing with a
+        helpful error message that includes the raw response for debugging.
+        """
+        import ast
+
+        if not response_text or not isinstance(response_text, str):
             raise ValueError(f"No JSON found in response: {response_text}")
+
+        text = response_text.strip()
+
+        # Remove common markdown code fences
+        text = re.sub(r'```json\s*', '', text, flags=re.IGNORECASE)
+        text = re.sub(r'```\s*', '', text)
+
+        # Helper: try to decode a candidate string with several fallbacks
+        def try_decode(candidate: str):
+            candidate = candidate.strip()
+            # First try strict JSON
+            try:
+                return json.loads(candidate)
+            except Exception:
+                pass
+
+            # Try to convert JS-like booleans/null to Python for ast.literal_eval
+            cleaned = candidate.replace('null', 'None')
+            cleaned = re.sub(r"(?i)\btrue\b", 'True', cleaned)
+            cleaned = re.sub(r"(?i)\bfalse\b", 'False', cleaned)
+
+            # Try ast.literal_eval which can handle single quotes
+            try:
+                return ast.literal_eval(cleaned)
+            except Exception:
+                pass
+
+            # Last resort: try fixing simple single-quote JSON by swapping quotes
+            try:
+                swapped = re.sub(r"'\\s*:\\s*'", '"":"', cleaned)
+                swapped = cleaned.replace("'", '"')
+                return json.loads(swapped)
+            except Exception:
+                pass
+
+            return None
+
+        # Strategy 1: find the largest JSON-like substring by scanning from first
+        # opening brace/bracket and matching braces to find a balanced JSON block.
+        start_idx = None
+        for i, ch in enumerate(text):
+            if ch in ('{', '['):
+                start_idx = i
+                break
+
+        if start_idx is not None:
+            # find matching closing brace/bracket by simple stack
+            stack = []
+            end_idx = None
+            pairs = {'{': '}', '[': ']'}
+            opening = text[start_idx]
+            expected_close = pairs.get(opening)
+            for j in range(start_idx, len(text)):
+                c = text[j]
+                if c == opening:
+                    stack.append(c)
+                elif c == expected_close:
+                    stack.pop()
+                    if not stack:
+                        end_idx = j
+                        break
+
+            if end_idx is not None:
+                candidate = text[start_idx:end_idx + 1]
+                decoded = try_decode(candidate)
+                if decoded is not None:
+                    return decoded
+
+        # Strategy 2: fallback to regex matches for any JSON object/array sequences
+        for match in re.finditer(r'(\{(?:.|\n)*?\}|\[(?:.|\n)*?\])', text, re.DOTALL):
+            candidate = match.group(0)
+            decoded = try_decode(candidate)
+            if decoded is not None:
+                return decoded
+
+        # If we reach here, nothing worked. Raise informative error.
+        raise ValueError(
+            "No JSON found in response. The LLM output may include explanatory text, "
+            "invalid JSON (single quotes, trailing commas), or be empty. Raw response:\n" +
+            response_text
+        )
 
 
 # Convenience function

@@ -252,7 +252,7 @@ cd ../..
 **Verify dbt Output:**
 ```powershell
 # Check that mart tables exist
-python -c "import duckdb; conn = duckdb.connect('ask_your_data.db'); print(conn.execute('SHOW TABLES FROM mart').df())"
+python -c "import duckdb; conn = duckdb.connect('ask_your_data.db'); result = conn.execute('SELECT table_schema, table_name FROM information_schema.tables WHERE table_schema = ''mart'' ORDER BY table_name').df(); print(result if len(result) > 0 else 'No mart schema found - dbt transformations need to be run')"
 
 # Should show:
 # - fact_orders
@@ -531,9 +531,10 @@ pytest --cov=src tests/
 
 **Test Database Connection:**
 ```powershell
-python -c "import duckdb; conn = duckdb.connect('ask_your_data.db'); print(conn.execute('SELECT COUNT(*) FROM mart.fact_orders').fetchone()[0], 'orders loaded')"
+# Check that raw data was loaded
+python -c "import duckdb; conn = duckdb.connect('ask_your_data.db'); print(conn.execute('SELECT COUNT(*) FROM raw.orders').fetchone()[0], 'orders loaded')"
 
-# Should print: 99441 orders loaded
+# Should print: 99441 orders loaded (or similar number)
 ```
 
 **Test Intent Parser:**
