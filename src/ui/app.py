@@ -2,7 +2,7 @@
 Ask Your Data Copilot - Streamlit Interface
 Natural Language to SQL Query Interface
 
-Simplified interface: Query → SQL → Results Table (No Charts)
+Complete interface: Query → SQL → Results Table + Auto Visualization
 """
 
 import streamlit as st
@@ -22,6 +22,8 @@ from src.nlp.intent_parser import IntentParser
 from src.sql.generator import SQLGenerator
 from src.sql.executor import SQLExecutor
 from src.nlp.models import Intent
+from src.charts.chart_selector import ChartSelector
+from src.charts.plotly_renderer import PlotlyRenderer
 
 
 # ============================================================================
@@ -96,18 +98,11 @@ def load_custom_css():
         }
         
         /* Metric display */
-        .metric-row {
-            display: flex;
-            gap: 1rem;
-            margin: 1rem 0;
-        }
-        
         .metric-box {
             background: white;
             padding: 1.5rem;
             border-radius: 12px;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-            flex: 1;
         }
         
         .metric-label {
@@ -150,9 +145,11 @@ def initialize_components():
         generator = SQLGenerator()
         executor = SQLExecutor()
         executor.connect()
-        return parser, generator, executor, None
+        chart_selector = ChartSelector()
+        chart_renderer = PlotlyRenderer()
+        return parser, generator, executor, chart_selector, chart_renderer, None
     except Exception as e:
-        return None, None, None, str(e)
+        return None, None, None, None, None, str(e)
 
 
 # ============================================================================
@@ -172,13 +169,13 @@ def main():
     st.markdown("""
         <div class="main-header">
             <h1>🔍 Ask Your Data Copilot</h1>
-            <p>Natural Language → SQL Query → Data Table</p>
+            <p>Natural Language → SQL Query → Data Table + Smart Visualization</p>
         </div>
     """, unsafe_allow_html=True)
     
     # Initialize components
     with st.spinner("🔧 Initializing AI components..."):
-        parser, generator, executor, init_error = initialize_components()
+        parser, generator, executor, chart_selector, chart_renderer, init_error = initialize_components()
     
     if init_error:
         st.error(f"⚠️ Initialization Error: {init_error}")
@@ -202,7 +199,7 @@ def main():
         # Database Info
         with st.expander("💾 Database Status", expanded=False):
             try:
-                result = executor.execute("SELECT COUNT(*) as total_orders FROM mart.fact_orders")
+                result = executor.execute("SELECT COUNT(*) as total_orders FROM main_mart.fact_orders")
                 if result.success:
                     total_orders = result.data['total_orders'].values[0]
                     st.success(f"✅ Connected to DuckDB")
@@ -335,30 +332,41 @@ def main():
             # Success message
             st.success(f"✅ Query executed successfully: {exec_result.row_count:,} row{'' if exec_result.row_count == 1 else 's'} returned in {total_time:.0f}ms")
             
-            # Results section
+            # ============================================================================
+            # RESULTS SECTION WITH SMART VISUALIZATION
+            # ============================================================================
+            
             st.markdown('<p class="section-header">📊 Query Results</p>', unsafe_allow_html=True)
             
-            # Display metrics for single-row results
-            if len(exec_result.data) == 1:
-                cols = st.columns(len(exec_result.data.columns))
-                for i, col_name in enumerate(exec_result.data.columns):
-                    value = exec_result.data[col_name].values[0]
-                    with cols[i]:
-                        st.markdown(f"""
-                            <div class="metric-box">
-                                <div class="metric-label">{col_name.replace('_', ' ').title()}</div>
-                                <div class="metric-value">{value:,.2f}</div>
-                            </div>
-                        """, unsafe_allow_html=True)
-                st.markdown("<br>", unsafe_allow_html=True)
+            # Select chart type
+            chart_config = chart_selector.select_chart(intent, exec_result.data)
             
-            # Data table
+            # Render visualization
+            if chart_config['type'] == 'metric':
+                # Single metric display
+                st.markdown(f"""
+                    <div class="metric-box" style="text-align: center; max-width: 400px; margin: 0 auto 2rem auto;">
+                        <div class="metric-label">{chart_config['label']}</div>
+                        <div class="metric-value">{chart_config['value']:,.2f}</div>
+                    </div>
+                """, unsafe_allow_html=True)
+            else:
+                # Render Plotly chart
+                fig = chart_renderer.render(chart_config)
+                if fig:
+                    st.plotly_chart(fig, use_container_width=True)
+            
+            # Data table (always show)
             st.markdown("### 📋 Data Table")
             st.dataframe(
                 exec_result.data,
                 use_container_width=True,
-                height=min(600, (len(exec_result.data) + 1) * 35 + 3)
+                height=min(400, (len(exec_result.data) + 1) * 35 + 3)
             )
+            
+            # ============================================================================
+            # END VISUALIZATION SECTION
+            # ============================================================================
             
             # Detailed Information (Collapsible)
             with st.expander("🔍 Query Details", expanded=False):
