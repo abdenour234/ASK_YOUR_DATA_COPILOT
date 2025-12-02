@@ -1,8 +1,5 @@
-"""
-Charts module - Automatic chart selection and rendering
-"""
+"""Charts module - simple chart selection"""
 
-from .chart_selector import ChartSelector
-from .plotly_renderer import PlotlyRenderer
+from .chart_selector import choose_chart
 
-__all__ = ['ChartSelector', 'PlotlyRenderer']
+__all__ = ['choose_chart']

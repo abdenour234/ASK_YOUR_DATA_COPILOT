@@ -1,8 +1,5 @@
 """
-Sprint 2 - Ticket 5: Intent Parser
-Uses OpenRouter API (GPT-4) to parse natural language queries into structured Intent objects.
-
-Dependencies: requests, python-dotenv, src.nlp.models
+Simple intent parser - converts natural language to structured intent dict
 """
 
 import os
@@ -11,410 +8,114 @@ import requests
 import re
 from typing import Dict, Optional
 from dotenv import load_dotenv
-from src.nlp.models import Intent, IntentParseResult
-from src.api.rag import get_retriever
 
-# Load environment variables
 load_dotenv()
 
 
-class IntentParser:
+def call_llm(prompt: str, api_key: str = None, model: str = None) -> str:
+    """Call LLM API and return response text."""
+    api_key = api_key or os.getenv("OPENROUTER_API_KEY")
+    if not api_key:
+        raise ValueError("OPENROUTER_API_KEY not set")
+    
+    model = model or os.getenv("OPENROUTER_MODEL", "google/gemini-2.0-flash-exp:free")
+    
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+        "HTTP-Referer": os.getenv("OPENROUTER_SITE_URL", "http://localhost:8501"),
+        "X-Title": os.getenv("OPENROUTER_SITE_NAME", "Ask Your Data")
+    }
+    
+    data = {
+        "model": model,
+        "messages": [{"role": "user", "content": prompt}]
+    }
+    
+    response = requests.post(
+        "https://openrouter.ai/api/v1/chat/completions",
+        headers=headers,
+        json=data,
+        timeout=30
+    )
+    response.raise_for_status()
+    return response.json()['choices'][0]['message']['content']
+
+
+def extract_json(text: str) -> Dict:
+    """Extract JSON from LLM response."""
+    json_match = re.search(r'\{.*\}', text, re.DOTALL)
+    if json_match:
+        return json.loads(json_match.group())
+    return json.loads(text)
+
+
+def build_prompt(query: str, rag_context: Optional[Dict] = None) -> str:
+    """Build prompt for intent parsing."""
+    prompt = f"""Parse this natural language query into structured JSON.
+
+QUERY: "{query}\""""
+    
+    # Add RAG context if available
+    if rag_context and rag_context.get('results'):
+        prompt += "\n\nAVAILABLE CONTEXT FROM GLOSSARY:"
+        for item in rag_context['results'][:5]:
+            prompt += f"\n- {item.get('name')}: {item.get('description')}"
+    
+    prompt += """
+
+Return JSON with these fields:
+- intent_type: "top_n", "group_by", "filter", "time_series", "aggregation", "distribution"
+- metrics: list of metrics to calculate (e.g., ["revenue", "order_count"])
+- dimensions: list of dimensions to group by (e.g., ["customer_state"])
+- filters: list of filter dicts with dimension, operator, value
+- order_by: sort spec like "revenue DESC"
+- limit: number for top_n queries
+- confidence: float 0-1
+
+Example output:
+{{"intent_type": "top_n", "metrics": ["revenue"], "dimensions": ["customer_state"], "filters": [], "order_by": "revenue DESC", "limit": 10, "confidence": 0.95}}
+
+Return ONLY valid JSON, no explanation."""
+    
+    return prompt
+
+
+def parse_query(query: str, use_rag: bool = True) -> Dict:
     """
-    Parses natural language queries into structured Intent objects using OpenRouter API.
+    Parse natural language query into intent dict.
     
-    Uses GPT-4 via OpenRouter to convert user queries like "top 10 products by revenue"
-    into structured Intent objects with metrics, dimensions, filters, etc.
+    Returns dict with:
+    - success: bool
+    - intent: dict with intent_type, metrics, dimensions, etc.
+    - error: str if failed
     """
-    
-    def __init__(
-        self,
-        api_key: Optional[str] = None,
-        model: str = "openrouter/auto",
-        site_url: Optional[str] = None,
-        site_name: Optional[str] = None
-    ):
-        """
-        Initialize Intent Parser.
+    try:
+        # Get RAG context if enabled
+        rag_context = None
+        if use_rag:
+            try:
+                from src.api.rag import search_glossary
+                results = search_glossary(query, top_k=5)
+                if results:
+                    rag_context = {'results': results}
+            except:
+                pass
         
-        Args:
-            api_key: OpenRouter API key (defaults to OPENROUTER_API_KEY env var)
-            model: Model to use (default: openrouter/auto - picks free model)
-            site_url: Your site URL for OpenRouter rankings (optional)
-            site_name: Your site name for OpenRouter rankings (optional)
-        """
-        self.api_key = api_key or os.getenv("OPENROUTER_API_KEY")
-        if not self.api_key:
-            raise ValueError(
-                "OpenRouter API key not found. Set OPENROUTER_API_KEY environment variable "
-                "or pass api_key parameter. Get your key from: https://openrouter.ai/keys"
-            )
+        prompt = build_prompt(query, rag_context)
+        response = call_llm(prompt)
+        intent = extract_json(response)
         
-        self.model = model or os.getenv("OPENROUTER_MODEL", "openrouter/auto")
-        self.site_url = site_url or os.getenv("OPENROUTER_SITE_URL", "http://localhost:8501")
-        self.site_name = site_name or os.getenv("OPENROUTER_SITE_NAME", "Ask Your Data Copilot")
+        intent['original_query'] = query
         
-        self.api_url = "https://openrouter.ai/api/v1/chat/completions"
-        
-        # Get RAG retriever for context enrichment
-        try:
-            self.retriever = get_retriever()
-        except Exception as e:
-            print(f"Warning: Could not initialize RAG retriever: {e}")
-            self.retriever = None
-    
-    def parse(
-        self, 
-        query: str, 
-        rag_context: Optional[Dict] = None,
-        use_rag: bool = True
-    ) -> IntentParseResult:
-        """
-        Parse natural language query into structured Intent.
-        
-        Args:
-            query: Natural language query from user
-            rag_context: Optional pre-fetched RAG context (if None, will fetch automatically)
-            use_rag: Whether to use RAG context enrichment (default: True)
-        
-        Returns:
-            IntentParseResult with success status and Intent object (if successful)
-        
-        Example:
-            >>> parser = IntentParser()
-            >>> result = parser.parse("What are the top 10 product categories by revenue?")
-            >>> if result.success:
-            >>>     print(result.intent.intent_type)  # 'top_n'
-            >>>     print(result.intent.metrics)      # ['revenue']
-            >>>     print(result.intent.dimensions)   # ['product_category']
-        """
-        try:
-            # Get RAG context if not provided
-            if use_rag and rag_context is None and self.retriever:
-                try:
-                    rag_context = self.retriever.get_context_for_sql(query, top_k=5)
-                except Exception as e:
-                    print(f"Warning: RAG context retrieval failed: {e}")
-                    rag_context = None
-            
-            # Build prompt
-            prompt = self._build_prompt(query, rag_context)
-            
-            # Call OpenRouter API
-            response = self._call_openrouter(prompt)
-            
-            # Extract and parse JSON
-            intent_json = self._extract_json(response)
-            
-            # Add original query
-            intent_json['original_query'] = query
-            
-            # Create Intent object
-            intent = Intent(**intent_json)
-            
-            return IntentParseResult(
-                success=True,
-                intent=intent,
-                error=None,
-                raw_response=response
-            )
-        
-        except Exception as e:
-            return IntentParseResult(
-                success=False,
-                intent=None,
-                error=str(e),
-                raw_response=None
-            )
-    
-    def _build_prompt(self, query: str, rag_context: Optional[Dict]) -> str:
-        """Build prompt for OpenRouter API."""
-        
-        prompt = f"""You are an expert SQL query intent parser for an e-commerce analytics system.
-
-USER QUERY: "{query}"
-"""
-        
-        # Add RAG context if available
-        if rag_context:
-            prompt += f"""
-AVAILABLE CONTEXT FROM KNOWLEDGE BASE:
-
-Metrics (what to measure):
-{self._format_metrics(rag_context.get('metrics', []))}
-
-Dimensions (how to group/filter):
-{self._format_dimensions(rag_context.get('dimensions', []))}
-"""
-            
-            if rag_context.get('common_patterns'):
-                prompt += f"""
-Similar Query Patterns Found:
-{self._format_patterns(rag_context['common_patterns'])}
-"""
-        
-        prompt += """
-TASK: Extract structured intent from the user query.
-
-Determine:
-1. **intent_type**: Choose from:
-   - "top_n": Top/bottom N items (e.g., "top 10 products")
-   - "group_by": Group by analysis (e.g., "revenue by state")
-   - "filter": Simple filter query (e.g., "orders from SP")
-   - "time_series": Temporal analysis (e.g., "monthly sales trend")
-   - "comparison": Compare groups (e.g., "compare Q1 vs Q2")
-   - "aggregation": Single aggregation (e.g., "what is total revenue?")
-   - "distribution": Distribution analysis (e.g., "payment method breakdown")
-   - "ranking": Rank items (e.g., "rank states by revenue")
-
-2. **metrics**: Array of metric names to calculate (e.g., ["revenue", "order_count"])
-   - Use ONLY metric names from the context above
-   - If no metrics provided but needed, infer from query (e.g., "top products" implies revenue or count)
-
-3. **dimensions**: Array of dimension names to group by or filter on
-   - Use ONLY dimension names from the context above
-
-4. **filters**: Array of filter objects with structure:
-   ```json
-   {"dimension": "order_status", "operator": "=", "value": "delivered"}
-   ```
-   - Operators: =, !=, >, <, >=, <=, IN, NOT IN, LIKE, BETWEEN
-
-5. **date_range**: If query mentions dates/time periods:
-   ```json
-   {"start_date": "2017-01-01", "end_date": "2017-12-31"}
-   ```
-
-6. **order_by**: Sort specification (e.g., "revenue DESC", "customer_state ASC")
-   - For top_n queries, typically sort by the metric DESC
-   - For time_series, typically sort by time dimension ASC
-
-7. **limit**: Number of results (for top_n queries, extract from "top 10", "bottom 5", etc.)
-
-8. **time_grain**: For time_series queries, choose from: "day", "week", "month", "quarter", "year"
-
-9. **confidence**: Float 0-1 indicating how confident you are in this parsing
-   - 0.9-1.0: Very clear, unambiguous query
-   - 0.7-0.9: Clear query with minor ambiguity
-   - 0.5-0.7: Somewhat ambiguous, made reasonable assumptions
-   - <0.5: Very ambiguous, low confidence
-
-IMPORTANT RULES:
-- Use ONLY metric and dimension names from the context provided
-- If a metric/dimension isn't in the context, use your best judgment but lower confidence
-- For "top N" queries: intent_type="top_n", order_by="<metric> DESC", limit=N
-- For "by <dimension>" queries: intent_type="group_by", dimensions=[<dimension>]
-- For "what is total..." queries: intent_type="aggregation", dimensions=[]
-- Always include confidence score
-
-Respond ONLY with valid JSON matching this exact structure (no explanations, no markdown):
-{
-  "intent_type": "top_n",
-  "metrics": ["revenue"],
-  "dimensions": ["product_category"],
-  "filters": [],
-  "date_range": null,
-  "order_by": "revenue DESC",
-  "limit": 10,
-  "time_grain": null,
-  "comparison_dimension": null,
-  "confidence": 0.95
-}
-"""
-        
-        return prompt
-    
-    def _format_metrics(self, metrics: list) -> str:
-        """Format metrics for prompt."""
-        if not metrics:
-            return "  (No specific metrics found in context)"
-        
-        lines = []
-        for m in metrics:
-            lines.append(f"  - {m['name']}: {m['description']}")
-            lines.append(f"    SQL: {m.get('aggregation', 'SUM')}({m['sql_column']}) from {m['table']}")
-        return "\n".join(lines)
-    
-    def _format_dimensions(self, dimensions: list) -> str:
-        """Format dimensions for prompt."""
-        if not dimensions:
-            return "  (No specific dimensions found in context)"
-        
-        lines = []
-        for d in dimensions:
-            lines.append(f"  - {d['name']}: {d['description']}")
-            lines.append(f"    SQL: {d['sql_column']} from {d['table']}")
-        return "\n".join(lines)
-    
-    def _format_patterns(self, patterns: list) -> str:
-        """Format common patterns for prompt."""
-        if not patterns:
-            return "  (No similar patterns found)"
-        
-        lines = []
-        for p in patterns:
-            lines.append(f"  - \"{p['query']}\" (intent: {p['intent']})")
-            sql_pattern = p.get('sql_pattern', '')
-            if sql_pattern:
-                # Truncate long patterns
-                if len(sql_pattern) > 100:
-                    sql_pattern = sql_pattern[:100] + "..."
-                lines.append(f"    Pattern: {sql_pattern}")
-        return "\n".join(lines)
-    
-    def _call_openrouter(self, prompt: str) -> str:
-        """Call OpenRouter API."""
-        headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "HTTP-Referer": self.site_url,
-            "X-Title": self.site_name,
-            "Content-Type": "application/json"
+        return {
+            'success': True,
+            'intent': intent,
+            'error': None
         }
-        
-        data = {
-            "model": self.model,
-            "messages": [
-                {
-                    "role": "system",
-                    "content": "You are an expert at parsing natural language queries into structured JSON. You always respond with valid JSON and nothing else."
-                },
-                {
-                    "role": "user",
-                    "content": prompt
-                }
-            ],
-            "temperature": 0.1,  # Low temperature for consistency
-            "max_tokens": 1000
+    except Exception as e:
+        return {
+            'success': False,
+            'intent': None,
+            'error': str(e)
         }
-        
-        response = requests.post(
-            self.api_url,
-            headers=headers,
-            data=json.dumps(data),
-            timeout=30
-        )
-        
-        response.raise_for_status()
-        
-        result = response.json()
-        
-        # Extract content from OpenRouter response
-        if 'choices' in result and len(result['choices']) > 0:
-            return result['choices'][0]['message']['content']
-        else:
-            raise ValueError(f"Unexpected API response format: {result}")
-    
-    def _extract_json(self, response_text: str) -> Dict:
-        """Extract JSON from LLM response using tolerant heuristics.
-
-        The LLM may include surrounding text, markdown fences, or use single
-        quotes. This method attempts several strategies before failing with a
-        helpful error message that includes the raw response for debugging.
-        """
-        import ast
-
-        if not response_text or not isinstance(response_text, str):
-            raise ValueError(f"No JSON found in response: {response_text}")
-
-        text = response_text.strip()
-
-        # Remove common markdown code fences
-        text = re.sub(r'```json\s*', '', text, flags=re.IGNORECASE)
-        text = re.sub(r'```\s*', '', text)
-
-        # Helper: try to decode a candidate string with several fallbacks
-        def try_decode(candidate: str):
-            candidate = candidate.strip()
-            # First try strict JSON
-            try:
-                return json.loads(candidate)
-            except Exception:
-                pass
-
-            # Try to convert JS-like booleans/null to Python for ast.literal_eval
-            cleaned = candidate.replace('null', 'None')
-            cleaned = re.sub(r"(?i)\btrue\b", 'True', cleaned)
-            cleaned = re.sub(r"(?i)\bfalse\b", 'False', cleaned)
-
-            # Try ast.literal_eval which can handle single quotes
-            try:
-                return ast.literal_eval(cleaned)
-            except Exception:
-                pass
-
-            # Last resort: try fixing simple single-quote JSON by swapping quotes
-            try:
-                swapped = re.sub(r"'\\s*:\\s*'", '"":"', cleaned)
-                swapped = cleaned.replace("'", '"')
-                return json.loads(swapped)
-            except Exception:
-                pass
-
-            return None
-
-        # Strategy 1: find the largest JSON-like substring by scanning from first
-        # opening brace/bracket and matching braces to find a balanced JSON block.
-        start_idx = None
-        for i, ch in enumerate(text):
-            if ch in ('{', '['):
-                start_idx = i
-                break
-
-        if start_idx is not None:
-            # find matching closing brace/bracket by simple stack
-            stack = []
-            end_idx = None
-            pairs = {'{': '}', '[': ']'}
-            opening = text[start_idx]
-            expected_close = pairs.get(opening)
-            for j in range(start_idx, len(text)):
-                c = text[j]
-                if c == opening:
-                    stack.append(c)
-                elif c == expected_close:
-                    stack.pop()
-                    if not stack:
-                        end_idx = j
-                        break
-
-            if end_idx is not None:
-                candidate = text[start_idx:end_idx + 1]
-                decoded = try_decode(candidate)
-                if decoded is not None:
-                    return decoded
-
-        # Strategy 2: fallback to regex matches for any JSON object/array sequences
-        for match in re.finditer(r'(\{(?:.|\n)*?\}|\[(?:.|\n)*?\])', text, re.DOTALL):
-            candidate = match.group(0)
-            decoded = try_decode(candidate)
-            if decoded is not None:
-                return decoded
-
-        # If we reach here, nothing worked. Raise informative error.
-        raise ValueError(
-            "No JSON found in response. The LLM output may include explanatory text, "
-            "invalid JSON (single quotes, trailing commas), or be empty. Raw response:\n" +
-            response_text
-        )
-
-
-# Convenience function
-def parse_intent(query: str, use_rag: bool = True) -> IntentParseResult:
-    """
-    Parse a natural language query into structured Intent.
-    
-    Args:
-        query: Natural language query
-        use_rag: Whether to use RAG context (default: True)
-    
-    Returns:
-        IntentParseResult with Intent object
-    
-    Example:
-        >>> from src.nlp.intent_parser import parse_intent
-        >>> result = parse_intent("Show me the top 10 product categories by revenue")
-        >>> if result.success:
-        >>>     print(f"Intent type: {result.intent.intent_type}")
-        >>>     print(f"Metrics: {result.intent.metrics}")
-    """
-    parser = IntentParser()
-    return parser.parse(query, use_rag=use_rag)

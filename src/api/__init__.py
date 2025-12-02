@@ -1,4 +1,5 @@
-"""
-Ask Your Data Copilot - FastAPI Backend
-Sprint 1 - Ticket 4: RAG glossary API endpoints
-"""
+"""FastAPI Backend - simple functions"""
+
+from .rag import search_glossary, load_glossary
+
+__all__ = ['search_glossary', 'load_glossary']

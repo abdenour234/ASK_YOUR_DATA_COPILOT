@@ -1,4 +1,5 @@
-"""
-Ask Your Data Copilot - Natural Language Processing Module
-Sprint 2 - Ticket 5: Intent parsing with Llama 3.1
-"""
+"""Natural Language Processing Module - simple functions"""
+
+from .intent_parser import parse_query
+
+__all__ = ['parse_query']

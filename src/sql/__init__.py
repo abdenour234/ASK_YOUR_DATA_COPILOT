@@ -1,4 +1,6 @@
-"""
-Ask Your Data Copilot - SQL Generation Module
-Sprint 2 - Ticket 6: Safe SQL generation and execution
-"""
+"""SQL Generation Module - simple functions"""
+
+from .generator import generate_sql
+from .executor import connect_db, run_query, get_schema
+
+__all__ = ['generate_sql', 'connect_db', 'run_query', 'get_schema']
